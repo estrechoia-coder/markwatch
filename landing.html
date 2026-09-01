@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarkWatch — USPTO trademark status &amp; watch API</title>
+<meta name="description" content="A developer-friendly API for USPTO trademark status, watch lists and webhook alerts. We are testing demand before building — nothing is live yet.">
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2d3748; --txt:#e6edf3; --mut:#8b98a9; --acc:#f0b429; --acc2:#58a6ff; --ok:#3fb950; --err:#f85149; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  a { color:var(--acc2); }
+  .wrap { max-width:960px; margin:0 auto; padding:0 20px; }
+  header { border-bottom:1px solid var(--line); padding:16px 0; }
+  .brand { font-weight:700; font-size:18px; letter-spacing:.4px; }
+  .brand b { color:var(--acc); }
+  .tag { color:var(--mut); font-size:13px; }
+  section { padding:44px 0; border-bottom:1px solid var(--line); }
+  h1 { font-size:34px; line-height:1.2; letter-spacing:-.5px; }
+  h1 em { color:var(--acc); font-style:normal; }
+  h2 { font-size:22px; margin-bottom:18px; }
+  .sub { color:var(--mut); margin-top:12px; font-size:17px; }
+  .cta-row { margin-top:26px; display:flex; gap:12px; flex-wrap:wrap; }
+  .btn { display:inline-block; padding:12px 20px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px; border:1px solid transparent; cursor:pointer; }
+  .btn-p { background:var(--acc); color:#1a1305; }
+  .btn-s { background:transparent; color:var(--acc2); border-color:var(--line); }
+  .badge { display:inline-block; background:var(--panel2); border:1px solid var(--line); color:var(--acc2); font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; margin-bottom:14px; letter-spacing:.3px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:8px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .card h3 { font-size:16px; margin-bottom:8px; }
+  .card p { color:var(--mut); font-size:14.5px; }
+  .plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+  .plan { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; position:relative; }
+  .plan.hot { border-color:var(--acc); }
+  .plan .price { font-size:28px; font-weight:700; margin:6px 0 2px; }
+  .plan .price span { font-size:14px; color:var(--mut); font-weight:400; }
+  .plan ul { list-style:none; margin-top:12px; color:var(--mut); font-size:14px; }
+  .plan ul li { padding:4px 0; border-bottom:1px dashed var(--line); }
+  .plan ul li:last-child { border-bottom:none; }
+  form { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; max-width:520px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:12px 0 6px; }
+  input[type=email], select { width:100%; padding:11px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--txt); font-size:15px; }
+  .form-msg { margin-top:12px; font-size:14px; min-height:20px; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  details { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin-bottom:10px; }
+  summary { cursor:pointer; font-weight:600; }
+  details p { color:var(--mut); margin-top:8px; font-size:14.5px; }
+  footer { color:var(--mut); font-size:13px; padding:26px 0 40px; }
+  footer p { margin:4px 0; }
+  .note { color:var(--mut); font-size:13px; margin-top:10px; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">Mark<b>Watch</b> <span class="tag">USPTO trademark status &amp; watch API — demand test</span></div>
+</div></header>
+
+<section><div class="wrap">
+  <span class="badge">BETA DEMAND TEST — NOTHING IS LIVE YET</span>
+  <h1>Never miss an office action on the <em>names you care about</em>.</h1>
+  <p class="sub">USPTO trademark data is public and free — but it's scattered, rate-limited and buried in XML. MarkWatch is a planned developer-friendly API for trademark status lookups, watch lists and webhook alerts. <strong>We're testing demand before building it.</strong></p>
+  <div class="cta-row">
+    <a class="btn btn-p" href="#waitlist">Join the waitlist</a>
+    <a class="btn btn-s" href="#plans">Pick a plan (paid intent)</a>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Why this exists</h2>
+  <div class="grid">
+    <div class="card"><h3>Deadlines you can miss</h3><p>Office actions carry strict response deadlines. Trademark attorneys and brand teams pay people to watch dockets for exactly this.</p></div>
+    <div class="card"><h3>Silent abandonment</h3><p>Marks get abandoned or go dead without fanfare — and someone else can pick up the name while you're not looking.</p></div>
+    <div class="card"><h3>Similar marks appear constantly</h3><p>New applications hit USPTO every day. Watching for confusingly-similar marks by class is manual, repetitive work.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Planned API</h2>
+  <div class="grid">
+    <div class="card"><h3>Status lookup</h3><p>Serial number, registration number or owner name → current status, dates, classes, assignments. Clean JSON.</p></div>
+    <div class="card"><h3>Watch lists</h3><p>Watch any set of marks (or owner names / classes) and get alerted the moment status changes.</p></div>
+    <div class="card"><h3>Webhook alerts</h3><p>Status changes pushed to your webhook or email. No polling, no babysitting.</p></div>
+    <div class="card"><h3>Honest limits</h3><p>Planned roadmap: owner/assignee data, class-based similar-mark scanning, bulk export. Not all shipped on day one.</p></div>
+  </div>
+  <p class="note">Data source: USPTO TSDR / Open Data Portal (public domain). MarkWatch is a data tool — not legal advice and not affiliated with USPTO.</p>
+</div></section>
+
+<section id="plans"><div class="wrap">
+  <h2>Plans (indicative — not final)</h2>
+  <div class="plans">
+    <div class="plan"><div class="price">$0<span>/mo</span></div><div>Free</div>
+      <ul><li>250 lookups / month</li><li>1 watched mark</li><li>Basic status JSON</li></ul></div>
+    <div class="plan hot"><div class="price">$19<span>/mo</span></div><div>Starter</div>
+      <ul><li>5,000 lookups / month</li><li>10 watched marks</li><li>Email alerts</li></ul></div>
+    <div class="plan"><div class="price">$49<span>/mo</span></div><div>Pro</div>
+      <ul><li>50,000 lookups / month</li><li>100 watched marks</li><li>Webhooks + email alerts</li><li>Bulk export (CSV)</li></ul></div>
+  </div>
+  <p class="note">Pricing shown to measure intent only. Nothing is sold today and nothing is built yet.</p>
+</div></section>
+
+<section id="waitlist"><div class="wrap">
+  <h2>Tell us you'd use this</h2>
+  <form id="f-waitlist">
+    <label for="wl-email">Email (for launch notification only — never shared)</label>
+    <input type="email" id="wl-email" required placeholder="you@company.com">
+    <div style="margin-top:14px"><button class="btn btn-p" type="submit">Join the waitlist</button></div>
+    <div class="form-msg" id="wl-msg"></div>
+  </form>
+</div></section>
+
+<section id="intent"><div class="wrap">
+  <h2>Which plan would you choose?</h2>
+  <p class="sub" style="margin-top:0">This is a paid-intent signal for our demand test — not an order. No payment, no card.</p>
+  <form id="f-intent" style="margin-top:18px">
+    <label for="in-tier">Plan you would pick</label>
+    <select id="in-tier" required>
+      <option value="" disabled selected>Choose a plan…</option>
+      <option value="free">Free — $0/mo</option>
+      <option value="starter">Starter — $19/mo</option>
+      <option value="pro">Pro — $49/mo</option>
+    </select>
+    <label for="in-email">Email (for launch notification only — never shared)</label>
+    <input type="email" id="in-email" required placeholder="you@company.com">
+    <div style="margin-top:14px"><button class="btn btn-p" type="submit">Notify me at launch</button></div>
+    <div class="form-msg" id="in-msg"></div>
+  </form>
+</div></section>
+
+<section><div class="wrap">
+  <h2>FAQ</h2>
+  <details open><summary>Is this live right now?</summary><p>No. This page is a demand test: we're checking whether developers and brand teams actually want this before we spend time building it. The API does not exist yet.</p></details>
+  <details><summary>Where does the data come from?</summary><p>USPTO's public trademark systems (TSDR and the Open Data Portal). That data is public domain — the problem is that it's awkward to consume, which is the gap MarkWatch would fill.</p></details>
+  <details><summary>Is this legal advice?</summary><p>No. MarkWatch is a data and alerting tool. It does not provide legal opinions on trademark matters.</p></details>
+  <details><summary>Why do you ask which plan I'd choose?</summary><p>To measure real demand. A waitlist tells us you're curious; a chosen plan tells us you'd pay. We report these numbers honestly, including if they're low.</p></details>
+  <details><summary>What happens to my email?</summary><p>Used only for launch notification if the product ships; never shared, never sold. If the product is not built, your email is deleted.</p></details>
+</div></section>
+
+<footer><div class="wrap">
+  <p>MarkWatch — USPTO trademark status &amp; watch API (demand test).</p>
+  <p>Data source: <a href="https://www.uspto.gov/trademarks" target="_blank" rel="noopener">USPTO</a> (public domain). Not affiliated with or endorsed by USPTO.</p>
+  <p>No customers, no testimonials, no revenue — this is an honest demand test.</p>
+</div></footer>
+
+<script>
+(function () {
+  function pv() {
+    try { fetch("/api/pv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: ref() }) }).catch(function(){}); } catch (e) {}
+  }
+  function ref() { var m = location.search.match(/[?&]ref=([^&]+)/); return m ? decodeURIComponent(m[1]).slice(0,40) : ""; }
+  function post(url, data, msgEl, okText) {
+    msgEl.className = "form-msg"; msgEl.textContent = "Sending…";
+    fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.ok) { msgEl.className = "form-msg ok"; msgEl.textContent = okText; }
+        else { msgEl.className = "form-msg err"; msgEl.textContent = (res.j && res.j.error) || "Something went wrong — please try again."; }
+      })
+      .catch(function () { msgEl.className = "form-msg err"; msgEl.textContent = "Network error — please try again."; });
+  }
+  document.getElementById("f-waitlist").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("wl-email").value.trim();
+    post("/api/waitlist", { email: email, ref: ref() }, document.getElementById("wl-msg"), "You're on the list. We'll email you only if MarkWatch ships.");
+    e.target.reset();
+  });
+  document.getElementById("f-intent").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("in-email").value.trim();
+    var tier = document.getElementById("in-tier").value;
+    post("/api/intent", { email: email, tier: tier, ref: ref() }, document.getElementById("in-msg"), "Recorded. We'll email you at launch if MarkWatch ships.");
+    e.target.reset();
+  });
+  pv();
+})();
+</script>
+</body>
+</html>
