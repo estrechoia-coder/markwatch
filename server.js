@@ -4,7 +4,8 @@
 // Storage priority (durable measurement first, per owner constraint that
 // Render allows only one free database):
 //   1) Postgres when DATABASE_URL is set (e.g. Neon free)   [existing path]
-//   2) Upstash Redis REST when UPSTASH_REST_URL + UPSTASH_REST_TOKEN are set
+//   2) Upstash Redis REST when UPSTASH_REST_URL (or the standard
+//      UPSTASH_REDIS_REST_URL) + matching token are set
 //      (free tier; no credit card; zero wake latency)
 //   3) JSONL fallback (ephemeral — free hosts wipe disk on restart; local dev
 //      only, never a reliable production store).
@@ -17,8 +18,8 @@ const path = require("path");
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = parseInt(process.env.PORT || "8788", 10);
 const DATABASE_URL = process.env.DATABASE_URL || "";
-const UPSTASH_URL = process.env.UPSTASH_REST_URL || "";
-const UPSTASH_TOKEN = process.env.UPSTASH_REST_TOKEN || "";
+const UPSTASH_URL = process.env.UPSTASH_REST_URL || process.env.UPSTASH_REDIS_REST_URL || "";
+const UPSTASH_TOKEN = process.env.UPSTASH_REST_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "";
 const EVENTS_KEY = "markwatch_events";
 const DATA_DIR = path.join(__dirname, "data");
 const EVENTS = path.join(DATA_DIR, "events.jsonl");
