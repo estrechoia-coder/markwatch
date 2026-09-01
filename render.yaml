@@ -1,8 +1,10 @@
 # Render Blueprint — MarkWatch fake-door (free plan only, EUR 0)
-# Mirrors the proven EdgarFeed blueprint. If Render rejects a second free
-# Postgres per account, drop the `databases:` block and set DATABASE_URL
-# manually (owner-provided free external DB) OR fall back to jsonl storage
-# with the ephemeral-disk caveat documented in server.js.
+# Render allows ONE free database per account (edgarfeed-db already uses it),
+# so NO database is declared here. Durable measurement uses a free EXTERNAL
+# store set via the Render dashboard env (owner paste, one time):
+#   - option A (recommended): UPSTASH_REST_URL + UPSTASH_REST_TOKEN (Upstash Redis free)
+#   - option B: DATABASE_URL (Neon Postgres free) — server already supports it
+# Without env vars the server still runs on jsonl (ephemeral, dev-only).
 services:
   - type: web
     name: markwatch
@@ -11,11 +13,3 @@ services:
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /api/health
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: markwatch-db
-          property: connectionString
-databases:
-  - name: markwatch-db
-    plan: free

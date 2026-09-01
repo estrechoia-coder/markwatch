@@ -1,9 +1,13 @@
 // MarkWatch — fake-door demand-test server (S19 USPTO trademark watch API).
 // Serves the landing page and records: page views, waitlist emails, and
 // PAID-INTENT plan selections (the primary demand signal).
-// Storage: Postgres when DATABASE_URL is set (durable), else JSONL fallback
-// (ephemeral — free-tier hosts may wipe disk on restart; Postgres is the
-// real measurement store, same pattern as EdgarFeed).
+// Storage priority (durable measurement first, per owner constraint that
+// Render allows only one free database):
+//   1) Postgres when DATABASE_URL is set (e.g. Neon free)   [existing path]
+//   2) Upstash Redis REST when UPSTASH_REST_URL + UPSTASH_REST_TOKEN are set
+//      (free tier; no credit card; zero wake latency)
+//   3) JSONL fallback (ephemeral — free hosts wipe disk on restart; local dev
+//      only, never a reliable production store).
 // Pure Node; the only optional dependency is `pg`.
 "use strict";
 const http = require("http");
@@ -13,6 +17,9 @@ const path = require("path");
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = parseInt(process.env.PORT || "8788", 10);
 const DATABASE_URL = process.env.DATABASE_URL || "";
+const UPSTASH_URL = process.env.UPSTASH_REST_URL || "";
+const UPSTASH_TOKEN = process.env.UPSTASH_REST_TOKEN || "";
+const EVENTS_KEY = "markwatch_events";
 const DATA_DIR = path.join(__dirname, "data");
 const EVENTS = path.join(DATA_DIR, "events.jsonl");
 
@@ -27,9 +34,10 @@ const TIERS = ["free", "starter", "pro"];
 let pg = null;
 let pool = null;
 
+function hasUpstash() { return !!(UPSTASH_URL && UPSTASH_TOKEN); }
 function logEvent(ev) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.appendFileSync(EVENTS, JSON.stringify({ ts: new Date().toISOString(), ...ev }) + "\n");
+  fs.appendFileSync(EVENTS, JSON.stringify(ev) + "\n");
 }
 
 async function initPg() {
@@ -44,21 +52,73 @@ async function initPg() {
       tier TEXT,
       ref TEXT
     )`);
-    console.log("storage: postgres (durable)");
     return true;
   } catch (e) {
-    console.log("storage: jsonl-ephemeral (pg unavailable: " + e.message.slice(0, 80) + ")");
+    console.log("storage: pg init failed -> " + e.message.slice(0, 80));
     pg = null; pool = null;
     return false;
   }
 }
 
+async function upstashSet(value) {
+  const res = await fetch(UPSTASH_URL + "/set/" + EVENTS_KEY, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + UPSTASH_TOKEN, "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+  if (!res.ok) throw new Error("upstash set http " + res.status);
+  return res.json().catch(() => ({}));
+}
+
+async function upstashGet() {
+  const res = await fetch(UPSTASH_URL + "/get/" + EVENTS_KEY, {
+    headers: { Authorization: "Bearer " + UPSTASH_TOKEN }
+  });
+  if (!res.ok) throw new Error("upstash get http " + res.status);
+  const j = await res.json().catch(() => ({}));
+  const v = j.result;
+  if (!v) return [];
+  try { const arr = JSON.parse(v); return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+
 async function store(kind, email, tier, ref) {
+  const ev = { ts: new Date().toISOString(), kind, email: email || null, tier: tier || null, ref: ref || null };
   if (pool) {
     await pool.query("INSERT INTO markwatch_events (kind, email, tier, ref) VALUES ($1,$2,$3,$4)", [kind, email, tier, ref]);
-  } else {
-    logEvent({ kind, email: email || null, tier: tier || null, ref: ref || null });
+    return;
   }
+  if (hasUpstash()) {
+    let arr = [];
+    try { arr = await upstashGet(); } catch (e) { console.log("upstash read fail:", e.message.slice(0, 60)); }
+    arr.push(ev);
+    try { await upstashSet(arr); } catch (e) { console.log("upstash write fail -> jsonl fallback:", e.message.slice(0, 60)); logEvent(ev); }
+    return;
+  }
+  logEvent(ev);
+}
+
+async function stats() {
+  if (pool) {
+    const r = await pool.query("SELECT kind, tier, count(*)::int AS n FROM markwatch_events GROUP BY kind, tier");
+    const rows = r.rows || [];
+    const pv = rows.filter(x => x.kind === "pv").reduce((a, x) => a + x.n, 0);
+    const wl = rows.filter(x => x.kind === "waitlist").reduce((a, x) => a + x.n, 0);
+    const intents = rows.filter(x => x.kind === "intent");
+    const by_plan = {}; intents.forEach(x => { by_plan[x.tier || "?"] = x.n; });
+    return { storage: "postgres", page_views: pv, waitlist: wl, paid_intent: { total: intents.reduce((a, x) => a + x.n, 0), by_plan } };
+  }
+  let lines = [];
+  if (hasUpstash()) {
+    try { lines = await upstashGet(); } catch (e) { console.log("upstash stats fail:", e.message.slice(0, 60)); }
+  } else if (fs.existsSync(EVENTS)) {
+    lines = fs.readFileSync(EVENTS, "utf8").trim().split(/\r?\n/).filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  }
+  const pv = lines.filter(e => e.kind === "pv").length;
+  const wl = lines.filter(e => e.kind === "waitlist").length;
+  const intents = lines.filter(e => e.kind === "intent");
+  const by_plan = {}; intents.forEach(e => { by_plan[e.tier || "?"] = (by_plan[e.tier || "?"] || 0) + 1; });
+  const storageLabel = pool ? "postgres" : (hasUpstash() ? "upstash" : (fs.existsSync(EVENTS) ? "jsonl-ephemeral" : "empty"));
+  return { storage: storageLabel, page_views: pv, waitlist: wl, paid_intent: { total: intents.length, by_plan } };
 }
 
 // ---------------- helpers ----------------
@@ -84,28 +144,6 @@ function send(res, code, obj) {
 
 function isInternal(u) { return u.searchParams.get("internal") === "1"; }
 function isTestEmail(e) { return /@markwatch\.example$/i.test(e || ""); }
-
-// ---------------- stats ----------------
-async function stats() {
-  if (pool) {
-    const r = await pool.query("SELECT kind, tier, count(*)::int AS n FROM markwatch_events GROUP BY kind, tier");
-    const rows = r.rows || [];
-    const pv = rows.filter(x => x.kind === "pv").reduce((a, x) => a + x.n, 0);
-    const wl = rows.filter(x => x.kind === "waitlist").reduce((a, x) => a + x.n, 0);
-    const intents = rows.filter(x => x.kind === "intent");
-    const by_plan = {}; intents.forEach(x => { by_plan[x.tier || "?"] = x.n; });
-    return { storage: "postgres", page_views: pv, waitlist: wl, paid_intent: { total: intents.reduce((a, x) => a + x.n, 0), by_plan } };
-  }
-  if (fs.existsSync(EVENTS)) {
-    const lines = fs.readFileSync(EVENTS, "utf8").trim().split(/\r?\n/).filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-    const pv = lines.filter(e => e.kind === "pv").length;
-    const wl = lines.filter(e => e.kind === "waitlist").length;
-    const intents = lines.filter(e => e.kind === "intent");
-    const by_plan = {}; intents.forEach(e => { by_plan[e.tier || "?"] = (by_plan[e.tier || "?"] || 0) + 1; });
-    return { storage: "jsonl-ephemeral", page_views: pv, waitlist: wl, paid_intent: { total: intents.length, by_plan } };
-  }
-  return { storage: "empty", page_views: 0, waitlist: 0, paid_intent: { total: 0, by_plan: {} } };
-}
 
 // ---------------- server ----------------
 const server = http.createServer(async (req, res) => {
@@ -160,5 +198,8 @@ const server = http.createServer(async (req, res) => {
 
 (async () => {
   if (DATABASE_URL) await initPg();
-  server.listen(PORT, HOST, () => console.log("markwatch fake-door on http://" + HOST + ":" + PORT + " (storage=" + (pool ? "postgres" : "jsonl-ephemeral") + ")"));
+  const mode = pool ? "postgres" : (hasUpstash() ? "upstash" : "jsonl-ephemeral");
+  console.log("markwatch fake-door on http://" + HOST + ":" + PORT + " (storage=" + mode + ")");
+  if (mode === "jsonl-ephemeral") console.log("WARNING: jsonl storage is ephemeral on free hosts; set DATABASE_URL (Neon) or UPSTASH_REST_URL/UPSTASH_REST_TOKEN for durable measurement.");
+  server.listen(PORT, HOST);
 })();
